@@ -1,0 +1,58 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: entrelares-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: entrelares
+      MYSQL_USER: entrelares
+      MYSQL_PASSWORD: entrelares
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: entrelares-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: entrelares
+      PMA_PASSWORD: entrelares
+    ports:
+      - "8081:80"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: entrelares-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: entrelares
+      DB_USERNAME: entrelares
+      DB_PASSWORD: entrelares
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www/html
+    command: php artisan serve --host=0.0.0.0 --port=8000
+
+volumes:
+  mysql_data:
